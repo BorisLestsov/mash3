@@ -9,7 +9,6 @@ const uint GRASS_INSTANCES = 100; // Количество травинок
 const uint GROUND_X = 1;
 const uint GROUND_Y = 1;
 
-
 GL::Camera camera;               // Мы предоставляем Вам реализацию камеры. В OpenGL камера - это просто 2 матрицы. Модельно-видовая матрица и матрица проекции. // ###
                                  // Задача этого класса только в том чтобы обработать ввод с клавиатуры и правильно сформировать эти матрицы.
                                  // Вы можете просто пользоваться этим классом для расчёта указанных матриц.
@@ -57,10 +56,10 @@ void DrawGround() {
 // Обновление смещения травинок
 void UpdateGrassVariance() {
     // Генерация случайных смещений
-//    for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-//        grassVarianceData[i].x = (float)rand() / RAND_MAX / 100;
-//        grassVarianceData[i].z = (float)rand() / RAND_MAX / 100;
-//    }
+    for (uint i = 0; i < GRASS_INSTANCES; ++i) {
+        grassVarianceData[i].x = (float)rand() / RAND_MAX / 100;
+        grassVarianceData[i].z = (float)rand() / RAND_MAX / 100;
+    }
 
     // Привязываем буфер, содержащий смещения
     glBindBuffer(GL_ARRAY_BUFFER, grassVariance);                                CHECK_GL_ERRORS
@@ -75,6 +74,16 @@ void UpdateGrassVariance() {
 void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
     glUseProgram(grassShader);                                                   CHECK_GL_ERRORS
+
+    //***
+
+    GLint col_loc = glGetUniformLocation(grassShader, "inColor");                 CHECK_GL_ERRORS
+    //static GLfloat cols[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
+    float red[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
+    glUniform4fv(col_loc, 1, red);
+
+    //***
+
     GLint cameraLocation = glGetUniformLocation(grassShader, "camera");          CHECK_GL_ERRORS
     glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
     glBindVertexArray(grassVAO);                                                 CHECK_GL_ERRORS
@@ -239,6 +248,8 @@ void CreateGrass() {
     glGenVertexArrays(1, &grassVAO);                                             CHECK_GL_ERRORS
     // Привязка VAO
     glBindVertexArray(grassVAO);                                                 CHECK_GL_ERRORS
+
+
 
     // Получение локации параметра 'point' в шейдере
     GLuint pointsLocation = glGetAttribLocation(grassShader, "point");           CHECK_GL_ERRORS
