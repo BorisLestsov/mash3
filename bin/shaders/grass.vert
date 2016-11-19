@@ -14,5 +14,14 @@ void main() {
     positionMatrix[3][0] = position.x;
     positionMatrix[3][2] = position.y;
 
-	gl_Position = camera * (positionMatrix * scaleMatrix * point + variance * pow(point.y, 1.4));
+    // random rotation matrix
+    mat4 rotMatrix = mat4(0.0);
+    rotMatrix[0][0] = sin(gl_InstanceID);
+    rotMatrix[1][1] = 1.0;
+    rotMatrix[0][2] = cos(gl_InstanceID);
+    rotMatrix[2][0] = -sin(gl_InstanceID);
+    rotMatrix[2][2] = cos(gl_InstanceID);
+    rotMatrix[3][3] = 1.0;
+
+	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point + variance * (pow(point.y, 1.4)));
 }
