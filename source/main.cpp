@@ -7,12 +7,14 @@
 using namespace std;
 
 const uint GRASS_INSTANCES = 100; // Количество травинок
-const uint GROUND_X = 1;
-const uint GROUND_Y = 1;
+const uint GROUND_X = 1.0f;
+const uint GROUND_Y = 1.0f;
+const GLfloat GRASS_HEIGHT = 2.0f;
+const GLfloat GRASS_WIDTH = 1.0f;
 
-GLuint ground_text;
+const uint LOD = 5;
 
-
+GLuint ground_tex;
 
 GL::Camera camera;               // Мы предоставляем Вам реализацию камеры. В OpenGL камера - это просто 2 матрицы. Модельно-видовая матрица и матрица проекции. // ###
                                  // Задача этого класса только в том чтобы обработать ввод с клавиатуры и правильно сформировать эти матрицы.
@@ -65,11 +67,11 @@ void DrawGround() {
 
 // Обновление смещения травинок
 void UpdateGrassVariance() {
-    static float g = 0.05f; //9.8f
+    static float g = 0.12f; //9.8f
     static float k = 5.0f;
     static float dt = 1.0f/60;
     static VM::vec4 hooke(0.0f, 0.0f, 0.0f, 0.0f);
-    static VM::vec4 wind(0.0f, 0.0f, 0.2f, 0.0f);
+    static VM::vec4 wind(0.0f, 0.1f, 0.1f, 0.0f);
     static vector<VM::vec4> velocities(GRASS_INSTANCES, VM::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     static vector<VM::vec4> accelerations(GRASS_INSTANCES, VM::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     // Генерация случайных смещений
@@ -82,7 +84,7 @@ void UpdateGrassVariance() {
         hooke.z = -k * abs(grassVarianceData[i].z);
 
         accelerations[i].x = wind.x + hooke.x;
-        accelerations[i].y = wind.y + hooke.y - g;
+        accelerations[i].y = hooke.y - g;
         accelerations[i].z = wind.z + hooke.z;
 
         velocities[i].x += accelerations[i].x * dt;
@@ -237,17 +239,29 @@ vector<VM::vec2> GenerateGrassPositions() {
 }
 
 // Здесь вам нужно будет генерировать меш
-vector<VM::vec4> GenMesh(uint n) {
-    return {
-        VM::vec4(0, 0, 0, 1),
-        VM::vec4(1, 0, 0, 1),
-        VM::vec4(0.5, 1, 0, 1),
-    };
+vector<VM::vec4> GenMesh(uint n = 1) {
+    vector<VM::vec4> mesh(n*6);
+
+    for (uint i = 0; i < n; ++i){
+        mesh[6*i+0] = VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1);
+        mesh[6*i+1] = VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1);
+        mesh[6*i+2] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
+        mesh[6*i+3] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
+        mesh[6*i+4] = VM::vec4(GRASS_WIDTH, (i+1)*GRASS_HEIGHT/n, 0, 1);
+        mesh[6*i+5] = VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1);
+    }
+
+    return mesh;
+
+// return {
+//        VM::vec4(0, 0, 0, 1),
+//        VM::vec4(1, 0, 0, 1),
+//        VM::vec4(0.5, 1, 0, 1),
+//    };
 }
 
 // Создание травы
 void CreateGrass() {
-    uint LOD = 1;
     // Создаём меш
     vector<VM::vec4> grassPoints = GenMesh(LOD);
     // Сохраняем количество вершин в меше травы
@@ -334,8 +348,8 @@ void CreateCamera() {
 // Создаём замлю
 void CreateGround() {
     glEnable(GL_TEXTURE_2D);
-    ground_text = SOIL_load_OGL_texture("../Texture/ground.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
-                                        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
+    //ground_text = SOIL_load_OGL_texture("../Texture/ground.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+    //                                    SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
 
 
     // Земля состоит из двух треугольников
