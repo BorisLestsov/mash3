@@ -6,21 +6,23 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 100; // Количество травинок
-const uint GROUND_X = 1.0f;
-const uint GROUND_Y = 1.0f;
-const GLfloat GRASS_HEIGHT = 2.0f;
-const GLfloat GRASS_WIDTH = 1.0f;
+const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
+const uint GROUND_X = 5.0f; // 5.0
+const uint GROUND_Y = 5.0f; //5.0
+const GLfloat GRASS_HEIGHT = 5.0f;  //5.0
+const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
-const uint LOD = 5;
+const uint LOD = 10;    //10
 
-float g = 0.07f; //9.8f
+float g = 0.03f; //9.8f
 float k = 5.0f;
 float dt = 1.0f/60;
 const VM::vec4 init_variance(0.02f, 0.0f, 0.02f, 0.0f);
-const VM::vec4 wind(0.15f, 0.0f, 0.15f, 0.0f);
+const VM::vec4 wind(0.30f, 0.0f, 0.30f, 0.0f);
 
-GLuint ground_tex;
+GLuint gr_texture;
+GLuint grass_texture;
+
 
 GL::Camera camera;               // Мы предоставляем Вам реализацию камеры. В OpenGL камера - это просто 2 матрицы. Модельно-видовая матрица и матрица проекции. // ###
                                  // Задача этого класса только в том чтобы обработать ввод с клавиатуры и правильно сформировать эти матрицы.
@@ -49,7 +51,10 @@ void DrawGround() {
     glUseProgram(groundShader);                                                  CHECK_GL_ERRORS
 
 
-
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gr_texture);
+    GLuint gr_text_loc = glGetUniformLocation(groundShader, "inTexture");
+    glUniform1i(gr_text_loc, 0);
 
 
 
@@ -79,9 +84,9 @@ void UpdateGrassVariance() {
 
     // Генерация случайных смещений
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-        hooke.x = -(k+i%20*0.03f /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].x);
+        hooke.x = -(k+float(i%GRASS_INSTANCES)/GRASS_INSTANCES /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].x);
         hooke.y = k * abs(grassVarianceData[i].y);
-        hooke.z = -(k+i%20*0.03f /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].z);
+        hooke.z = -(k+float(i%GRASS_INSTANCES)/GRASS_INSTANCES /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].z);
 
         accelerations[i].x = wind.x + hooke.x;
         accelerations[i].y = hooke.y - g;
@@ -104,7 +109,6 @@ void UpdateGrassVariance() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
 }
 
-
 // Рисование травы
 void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
@@ -112,11 +116,17 @@ void DrawGrass() {
 
     //***
 
-    GLint col_loc = glGetUniformLocation(grassShader, "inColor");                 CHECK_GL_ERRORS
-    //static GLfloat cols[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
-    //float red[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
-    float red[4] = {0,1,0,0};
-    glUniform4fv(col_loc, 1, red);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, grass_texture);
+    GLuint grass_text_loc = glGetUniformLocation(grassShader, "inTexture");
+    glUniform1i(grass_text_loc, 0);
+
+
+//    GLint col_loc = glGetUniformLocation(grassShader, "inColor");                 CHECK_GL_ERRORS
+//    //static GLfloat cols[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
+//    //float red[4] = {(float)rand()/RAND_MAX, (float)rand()/RAND_MAX, (float)rand()/RAND_MAX, 0.0f};
+//    float red[4] = {0, 1, 0,0};
+//    glUniform4fv(col_loc, 1, red);
     //***
 
     GLint cameraLocation = glGetUniformLocation(grassShader, "camera");          CHECK_GL_ERRORS
@@ -251,6 +261,10 @@ vector<VM::vec4> GenMesh(uint n = 1) {
         mesh[6*i+5] = VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1);
     }
 
+    mesh.push_back(VM::vec4(0.0f, GRASS_HEIGHT, 0, 1));
+    mesh.push_back(VM::vec4(GRASS_WIDTH, GRASS_HEIGHT, 0, 1));
+    mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT*1.1, 0, 1));
+
     return mesh;
 
 // return {
@@ -272,6 +286,33 @@ void CreateGrass() {
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
         grassVarianceData[i] = init_variance;
     }
+
+
+    glEnable(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Set texture filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int width, height;
+    unsigned char* image = SOIL_load_image("../Texture/grass.jpg", &width, &height, 0,
+                                           SOIL_LOAD_RGB);
+
+    glGenTextures(1, &grass_texture);
+
+    glBindTexture(GL_TEXTURE_2D, grass_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    SOIL_free_image_data(image);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+
+
+
 
     /* Компилируем шейдеры
     Эта функция принимает на вход название шейдера 'shaderName',
@@ -348,8 +389,26 @@ void CreateCamera() {
 // Создаём замлю
 void CreateGround() {
     glEnable(GL_TEXTURE_2D);
-    //ground_text = SOIL_load_OGL_texture("../Texture/ground.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
-    //                                    SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Set texture filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    int width, height;
+    unsigned char* image = SOIL_load_image("../Texture/ground.bmp", &width, &height, 0,
+                                           SOIL_LOAD_RGB);
+
+    glGenTextures(1, &gr_texture);
+
+    glBindTexture(GL_TEXTURE_2D, gr_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    SOIL_free_image_data(image);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
 
     // Земля состоит из двух треугольников

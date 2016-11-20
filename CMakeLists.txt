@@ -16,14 +16,14 @@ include_directories( ${OPENGL_INCLUDE_DIRS}  ${GLUT_INCLUDE_DIRS} ${GLEW_INCLUDE
 set(EXECUTABLE_OUTPUT_PATH bin)
 
 add_library(SOIL STATIC SOIL/src/
-	SOIL/src/image_DXT.c     
+	SOIL/src/image_DXT.c
 	SOIL/src/image_helper.h  
 	SOIL/src/SOIL.h            
 	SOIL/src/stb_image_aug.c
 	SOIL/src/image_DXT.h     
 	SOIL/src/stbi_DDS_aug_c.h  
 	SOIL/src/stb_image_aug.h
-	SOIL/src/image_helper.c  
+	SOIL/src/image_helper.c
 	SOIL/src/SOIL.c         
 	SOIL/src/stbi_DDS_aug.h 
 	SOIL/src/original/stb_image-1.09.c  

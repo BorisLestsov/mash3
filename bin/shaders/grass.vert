@@ -6,6 +6,8 @@ in vec4 variance;
 
 uniform mat4 camera;
 
+out vec2 TexCoord;
+
 void main() {
     mat4 scaleMatrix = mat4(1.0);
     scaleMatrix[0][0] = 0.01;
@@ -16,12 +18,14 @@ void main() {
 
     // random rotation matrix
     mat4 rotMatrix = mat4(0.0);
-    rotMatrix[0][0] = sin(gl_InstanceID);
+    rotMatrix[0][0] = cos(gl_InstanceID);
     rotMatrix[1][1] = 1.0;
-    rotMatrix[0][2] = cos(gl_InstanceID);
+    rotMatrix[0][2] = sin(gl_InstanceID);
     rotMatrix[2][0] = -sin(gl_InstanceID);
     rotMatrix[2][2] = cos(gl_InstanceID);
     rotMatrix[3][3] = 1.0;
+
+    TexCoord = vec2(point.y, point.x);
 
 	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point + variance * (pow(point.y, 1.4)));
 }
