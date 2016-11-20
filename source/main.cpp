@@ -14,6 +14,12 @@ const GLfloat GRASS_WIDTH = 1.0f;
 
 const uint LOD = 5;
 
+float g = 0.07f; //9.8f
+float k = 5.0f;
+float dt = 1.0f/60;
+const VM::vec4 init_variance(0.02f, 0.0f, 0.02f, 0.0f);
+const VM::vec4 wind(0.15f, 0.0f, 0.15f, 0.0f);
+
 GLuint ground_tex;
 
 GL::Camera camera;               // Мы предоставляем Вам реализацию камеры. В OpenGL камера - это просто 2 матрицы. Модельно-видовая матрица и матрица проекции. // ###
@@ -67,21 +73,15 @@ void DrawGround() {
 
 // Обновление смещения травинок
 void UpdateGrassVariance() {
-    static float g = 0.12f; //9.8f
-    static float k = 5.0f;
-    static float dt = 1.0f/60;
     static VM::vec4 hooke(0.0f, 0.0f, 0.0f, 0.0f);
-    static VM::vec4 wind(0.0f, 0.1f, 0.1f, 0.0f);
     static vector<VM::vec4> velocities(GRASS_INSTANCES, VM::vec4(0.0f, 0.0f, 0.0f, 0.0f));
     static vector<VM::vec4> accelerations(GRASS_INSTANCES, VM::vec4(0.0f, 0.0f, 0.0f, 0.0f));
+
     // Генерация случайных смещений
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-//        grassVarianceData[i].x = (float)rand() / RAND_MAX / 100;
-//        grassVarianceData[i].z = (float)rand() / RAND_MAX / 100;
-
-        hooke.x = -k * abs(grassVarianceData[i].x);
+        hooke.x = -(k+i%20*0.03f /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].x);
         hooke.y = k * abs(grassVarianceData[i].y);
-        hooke.z = -k * abs(grassVarianceData[i].z);
+        hooke.z = -(k+i%20*0.03f /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].z);
 
         accelerations[i].x = wind.x + hooke.x;
         accelerations[i].y = hooke.y - g;
@@ -270,7 +270,7 @@ void CreateGrass() {
     vector<VM::vec2> grassPositions = GenerateGrassPositions();
     // Инициализация смещений для травинок
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-        grassVarianceData[i] = VM::vec4(0, 0, 0, 0);
+        grassVarianceData[i] = init_variance;
     }
 
     /* Компилируем шейдеры
