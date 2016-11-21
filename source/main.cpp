@@ -6,7 +6,7 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
+const uint GRASS_INSTANCES = 5000;  // 10000 Количество травинок
 const uint GROUND_X = 5.0f; // 5.0
 const uint GROUND_Y = 5.0f; //5.0
 const GLfloat GRASS_HEIGHT = 5.0f;  //5.0
@@ -263,7 +263,7 @@ vector<VM::vec4> GenMesh(uint n = 1) {
 
     mesh.push_back(VM::vec4(0.0f, GRASS_HEIGHT, 0, 1));
     mesh.push_back(VM::vec4(GRASS_WIDTH, GRASS_HEIGHT, 0, 1));
-    mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT*1.1, 0, 1));
+    mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT*1.1 , 0, 1));
 
     return mesh;
 
