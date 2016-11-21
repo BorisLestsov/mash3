@@ -114,7 +114,8 @@ void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
     glUseProgram(grassShader);                                                   CHECK_GL_ERRORS
 
-    //***
+    GLuint height_loc = glGetUniformLocation(grassShader, "GRASS_HEIGHT");
+    glUniform1f(height_loc, GRASS_HEIGHT);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, grass_texture);
@@ -146,6 +147,7 @@ void RenderLayouts() {
     glEnable(GL_DEPTH_TEST);
     // Очистка буфера глубины и цветового буфера
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
     // Рисуем меши
     DrawGround();
     DrawGrass();
@@ -222,7 +224,7 @@ void windowReshapeFunc(GLint newWidth, GLint newHeight) {
 // Инициализация окна
 void InitializeGLUT(int argc, char **argv) {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
     glutInitContextVersion(3, 0);
     glutInitWindowPosition(-1, -1);
     glutInitWindowSize(screenWidth, screenHeight);
@@ -252,7 +254,7 @@ vector<VM::vec2> GenerateGrassPositions() {
 vector<VM::vec4> GenMesh(uint n = 1) {
     vector<VM::vec4> mesh(n*6);
 
-    for (uint i = 0; i < n; ++i){
+    for (uint i = 0; i < 3.0f*n/4.0f; ++i){
         mesh[6*i+0] = VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1);
         mesh[6*i+1] = VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1);
         mesh[6*i+2] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
@@ -261,9 +263,9 @@ vector<VM::vec4> GenMesh(uint n = 1) {
         mesh[6*i+5] = VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1);
     }
 
-    mesh.push_back(VM::vec4(0.0f, GRASS_HEIGHT, 0, 1));
-    mesh.push_back(VM::vec4(GRASS_WIDTH, GRASS_HEIGHT, 0, 1));
-    mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT*1.1 , 0, 1));
+    mesh.push_back(VM::vec4(0.0f, GRASS_HEIGHT*3.0f/4.0f, 0, 1));
+    mesh.push_back(VM::vec4(GRASS_WIDTH, GRASS_HEIGHT*3.0f/4.0f, 0, 1));
+    mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT , 0, 1));
 
     return mesh;
 
@@ -290,28 +292,20 @@ void CreateGrass() {
 
     glEnable(GL_TEXTURE_2D);
 
+    grass_texture = SOIL_load_OGL_texture("../Texture/grass.bmp",
+                                       SOIL_LOAD_AUTO,
+                                       SOIL_CREATE_NEW_ID,
+                                       SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+    );
+
+    glBindTexture(GL_TEXTURE_2D, grass_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     // Set texture filtering
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    int width, height;
-    unsigned char* image = SOIL_load_image("../Texture/grass.jpg", &width, &height, 0,
-                                           SOIL_LOAD_RGB);
-
-    glGenTextures(1, &grass_texture);
-
-    glBindTexture(GL_TEXTURE_2D, grass_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, image);
     glGenerateMipmap(GL_TEXTURE_2D);
-
-    SOIL_free_image_data(image);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-
-
 
 
     /* Компилируем шейдеры
@@ -390,26 +384,20 @@ void CreateCamera() {
 void CreateGround() {
     glEnable(GL_TEXTURE_2D);
 
+    gr_texture = SOIL_load_OGL_texture("../Texture/ground.bmp",
+                    SOIL_LOAD_AUTO,
+                    SOIL_CREATE_NEW_ID,
+                    SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+            );
+
+    glBindTexture(GL_TEXTURE_2D, gr_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     // Set texture filtering
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-    int width, height;
-    unsigned char* image = SOIL_load_image("../Texture/ground.bmp", &width, &height, 0,
-                                           SOIL_LOAD_RGB);
-
-    glGenTextures(1, &gr_texture);
-
-    glBindTexture(GL_TEXTURE_2D, gr_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, image);
     glGenerateMipmap(GL_TEXTURE_2D);
-
-    SOIL_free_image_data(image);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
 
     // Земля состоит из двух треугольников
     vector<VM::vec4> meshPoints = {
