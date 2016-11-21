@@ -6,7 +6,7 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 5000;  // 10000 Количество травинок
+const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
 const uint GROUND_X = 5.0f; // 5.0
 const uint GROUND_Y = 5.0f; //5.0
 const GLfloat GRASS_HEIGHT = 5.0f;  //5.0
@@ -14,11 +14,11 @@ const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
 const uint LOD = 10;    //10
 
-float g = 0.03f; //9.8f
+float g = 0.08f; //9.8f
 float k = 5.0f;
 float dt = 1.0f/60;
-const VM::vec4 init_variance(0.02f, 0.0f, 0.02f, 0.0f);
-const VM::vec4 wind(0.30f, 0.0f, 0.30f, 0.0f);
+const VM::vec4 init_variance(0.11f, 0.0f, 0.11f, 0.0f);
+const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
 
 GLuint gr_texture;
 GLuint grass_texture;
@@ -44,6 +44,9 @@ uint screenHeight = 600;
 
 // Это для захвата мышки. Вам это не потребуется (это не значит, что нужно удалять эту строку)
 bool captureMouse = true;
+
+
+bool msaa = false;
 
 // Функция, рисующая замлю
 void DrawGround() {
@@ -114,8 +117,17 @@ void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
     glUseProgram(grassShader);                                                   CHECK_GL_ERRORS
 
+    if (msaa) {
+        glEnable(GL_MULTISAMPLE);
+    } else {
+        glDisable(GL_MULTISAMPLE);
+    }
+
     GLuint height_loc = glGetUniformLocation(grassShader, "GRASS_HEIGHT");
     glUniform1f(height_loc, GRASS_HEIGHT);
+
+    GLuint width_loc = glGetUniformLocation(grassShader, "GRASS_WIDTH");
+    glUniform1f(width_loc, GRASS_WIDTH);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, grass_texture);
@@ -165,6 +177,8 @@ void KeyboardEvents(unsigned char key, int x, int y) {
         FinishProgram();
     } else if (key == 'w') {
         camera.goForward();
+    } else if (key == 'a') {
+        msaa = !msaa;
     } else if (key == 's') {
         camera.goBack();
     } else if (key == 'm') {
@@ -224,7 +238,7 @@ void windowReshapeFunc(GLint newWidth, GLint newHeight) {
 // Инициализация окна
 void InitializeGLUT(int argc, char **argv) {
     glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
+    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_MULTISAMPLE);
     glutInitContextVersion(3, 0);
     glutInitWindowPosition(-1, -1);
     glutInitWindowSize(screenWidth, screenHeight);
@@ -253,8 +267,8 @@ vector<VM::vec2> GenerateGrassPositions() {
 // Здесь вам нужно будет генерировать меш
 vector<VM::vec4> GenMesh(uint n = 1) {
     vector<VM::vec4> mesh(n*6);
-
-    for (uint i = 0; i < 3.0f*n/4.0f; ++i){
+    uint i;
+    for (i = 0; i < 3.0f*n/4.0f; ++i){
         mesh[6*i+0] = VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1);
         mesh[6*i+1] = VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1);
         mesh[6*i+2] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
@@ -263,8 +277,8 @@ vector<VM::vec4> GenMesh(uint n = 1) {
         mesh[6*i+5] = VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1);
     }
 
-    mesh.push_back(VM::vec4(0.0f, GRASS_HEIGHT*3.0f/4.0f, 0, 1));
-    mesh.push_back(VM::vec4(GRASS_WIDTH, GRASS_HEIGHT*3.0f/4.0f, 0, 1));
+    mesh.push_back(VM::vec4(0.0f, (float)i*GRASS_HEIGHT/n, 0, 1));
+    mesh.push_back(VM::vec4(GRASS_WIDTH, (float)i*GRASS_HEIGHT/n, 0, 1));
     mesh.push_back(VM::vec4((float)GRASS_WIDTH/2, GRASS_HEIGHT , 0, 1));
 
     return mesh;

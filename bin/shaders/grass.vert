@@ -6,12 +6,13 @@ in vec4 variance;
 
 uniform mat4 camera;
 uniform float GRASS_HEIGHT;
+uniform float GRASS_WIDTH;
 
 out vec2 TexCoord;
 
 void main() {
     mat4 scaleMatrix = mat4(1.0);
-    scaleMatrix[0][0] = 0.01; // 0.005 + 0.02*fract(pow(gl_InstanceID, 2.1368464164));
+    scaleMatrix[0][0] = 0.008 + 0.03*fract(pow(gl_InstanceID, 2.1368464164));
     scaleMatrix[1][1] = 0.1 + 0.05*fract(pow(gl_InstanceID, 2.1368464164));   //0.1;
     mat4 positionMatrix = mat4(1.0);
     positionMatrix[3][0] = position.x;
@@ -26,7 +27,8 @@ void main() {
     rotMatrix[2][2] = cos(gl_InstanceID);
     rotMatrix[3][3] = 1.0;
 
-    TexCoord = vec2(point.x, point.y/GRASS_HEIGHT);
+    TexCoord = vec2(point.x/GRASS_WIDTH, point.y/GRASS_HEIGHT);
 
-	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point + variance * (pow(point.y, 1.4)));
+	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point +
+	                        variance * pow(point.y, 1.3)/GRASS_HEIGHT);
 }
