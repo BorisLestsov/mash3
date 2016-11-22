@@ -26,8 +26,8 @@ add_library(SOIL STATIC SOIL/src/
 	SOIL/src/image_helper.c
 	SOIL/src/SOIL.c         
 	SOIL/src/stbi_DDS_aug.h 
-	SOIL/src/original/stb_image-1.09.c  
-	SOIL/src/original/stb_image-1.16.c
+	#SOIL/src/original/stb_image-1.09.c
+	#SOIL/src/original/stb_image-1.16.c
 )
 
 add_executable(cmake_project
