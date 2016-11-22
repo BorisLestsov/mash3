@@ -6,13 +6,15 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 100;  // 10000 Количество травинок
+const uint GRASS_INSTANCES = 5000;  // 10000 Количество травинок
 const uint GROUND_X = 5.0f; // 5.0
 const uint GROUND_Y = 5.0f; //5.0
-const GLfloat GRASS_HEIGHT = 5.0f;  //5.0
+const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
 const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
-const uint LOD = 4;    //10
+const float SPEED = 0.04;
+
+const uint LOD = 10;    //10
 
 float g = 0.08f; //9.8f
 float k = 5.0f;
@@ -46,20 +48,17 @@ uint screenHeight = 600;
 bool captureMouse = true;
 
 
-bool msaa = true;
+bool msaa_flag = true;
 
 // Функция, рисующая замлю
 void DrawGround() {
     // Используем шейдер для земли
     glUseProgram(groundShader);                                                  CHECK_GL_ERRORS
 
-
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, gr_texture);
     GLuint gr_text_loc = glGetUniformLocation(groundShader, "inTexture");
     glUniform1i(gr_text_loc, 0);
-
-
 
     // Устанавливаем юниформ для шейдера. В данном случае передадим перспективную матрицу камеры
     // Находим локацию юниформа 'camera' в шейдере
@@ -87,9 +86,9 @@ void UpdateGrassVariance() {
 
     // Генерация случайных смещений
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-        hooke.x = -(k+float(i%GRASS_INSTANCES)/GRASS_INSTANCES /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].x);
+        hooke.x = -(k + float(i%GRASS_INSTANCES)/GRASS_INSTANCES) * grassVarianceData[i].x;
         hooke.y = k * abs(grassVarianceData[i].y);
-        hooke.z = -(k+float(i%GRASS_INSTANCES)/GRASS_INSTANCES /* + (float)rand()/RAND_MAX/50 */) * abs(grassVarianceData[i].z);
+        hooke.z = -(k + float(i%GRASS_INSTANCES)/GRASS_INSTANCES) * grassVarianceData[i].z;
 
         accelerations[i].x = wind.x + hooke.x;
         accelerations[i].y = hooke.y - g;
@@ -117,7 +116,7 @@ void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
     glUseProgram(grassShader); CHECK_GL_ERRORS
 
-    if (msaa) {
+    if (msaa_flag) {
         glEnable(GL_MULTISAMPLE);
     } else {
         glDisable(GL_MULTISAMPLE);
@@ -176,11 +175,11 @@ void KeyboardEvents(unsigned char key, int x, int y) {
     if (key == 27) {
         FinishProgram();
     } else if (key == 'w') {
-        camera.goForward();
+        camera.goForward(SPEED);
     } else if (key == 'a') {
-        msaa = !msaa;
+        msaa_flag = !msaa_flag;
     } else if (key == 's') {
-        camera.goBack();
+        camera.goBack(SPEED);
     } else if (key == 'm') {
         captureMouse = !captureMouse;
         if (captureMouse) {
@@ -255,12 +254,16 @@ void InitializeGLUT(int argc, char **argv) {
     glutReshapeFunc(windowReshapeFunc);
 }
 
+bool is_in_area(const VM::vec2& v){
+    return (v.x)*(v.x) + (v.y)*(v.y) > GROUND_X*GROUND_X/4;
+}
+
 // Генерация позиций травинок (эту функцию вам придётся переписать)
 vector<VM::vec2> GenerateGrassPositions() {
     vector<VM::vec2> grassPositions(GRASS_INSTANCES);
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
         grassPositions[i] = VM::vec2((float)rand()/RAND_MAX*GROUND_X, (float)rand()/RAND_MAX*GROUND_Y);
-        while (grassPositions[i].x*grassPositions[i].x < GROUND_X)
+        while (!is_in_area(grassPositions[i]))
             grassPositions[i] = VM::vec2((float)rand()/RAND_MAX*GROUND_X, (float)rand()/RAND_MAX*GROUND_Y);
     }
     return grassPositions;
@@ -268,15 +271,15 @@ vector<VM::vec2> GenerateGrassPositions() {
 
 // Здесь вам нужно будет генерировать меш
 vector<VM::vec4> GenMesh(uint n = 1) {
-    vector<VM::vec4> mesh(6*(3*n/4));
+    vector<VM::vec4> mesh;
     uint i;
     for (i = 0; i < 3.0f*n/4.0f; ++i){
-        mesh[6*i+0] = VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1);
-        mesh[6*i+1] = VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1);
-        mesh[6*i+2] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
-        mesh[6*i+3] = VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1);
-        mesh[6*i+4] = VM::vec4(GRASS_WIDTH, (i+1)*GRASS_HEIGHT/n, 0, 1);
-        mesh[6*i+5] = VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1);
+        mesh.push_back(VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1));
+        mesh.push_back(VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1));
+        mesh.push_back(VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1));
+        mesh.push_back(VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1));
+        mesh.push_back(VM::vec4(GRASS_WIDTH, (i+1)*GRASS_HEIGHT/n, 0, 1));
+        mesh.push_back(VM::vec4(GRASS_WIDTH, (i)*GRASS_HEIGHT/n, 0, 1));
     }
 
     mesh.push_back(VM::vec4(0.0f, (float)i*GRASS_HEIGHT/n, 0, 1));
@@ -386,8 +389,8 @@ void CreateGrass() {
 // Создаём камеру (Если шаблонная камера вам не нравится, то можете переделать, но я бы не стал)
 void CreateCamera() {
     camera.angle = 45.0f / 180.0f * M_PI;
-    camera.direction = VM::vec3(0, 0.3, -1);
-    camera.position = VM::vec3(0.5, 0.2, 0);
+    camera.direction = VM::vec3(-0.3, 0.3, -0.5);
+    camera.position = VM::vec3(0.5, 2, 0);
     camera.screenRatio = (float)screenWidth / screenHeight;
     camera.up = VM::vec3(0, 1, 0);
     camera.zfar = 50.0f;
@@ -396,7 +399,7 @@ void CreateCamera() {
 
 // Создаём замлю
 void CreateGround() {
-    glEnable(GL_TEXTURE_2D);CHECK_GL_ERRORS
+    glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
 
     gr_texture = SOIL_load_OGL_texture("../Texture/ground.bmp",
                     SOIL_LOAD_AUTO,
