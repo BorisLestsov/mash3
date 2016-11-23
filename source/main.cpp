@@ -618,8 +618,8 @@ void CreateGround() {
 // Создаём камеру (Если шаблонная камера вам не нравится, то можете переделать, но я бы не стал)
 void CreateCamera() {
     camera.angle = 45.0f / 180.0f * M_PI;
-    camera.direction = VM::vec3(-0.3, 0.3, -0.5);
-    camera.position = VM::vec3(0.5, 2, 0);
+    camera.direction = VM::vec3(0.1, 0.3, -0.5);
+    camera.position = VM::vec3(5, 3, -3);
     camera.screenRatio = (float)screenWidth / screenHeight;
     camera.up = VM::vec3(0, 1, 0);
     camera.zfar = 50.0f;
