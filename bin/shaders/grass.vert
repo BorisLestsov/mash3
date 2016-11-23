@@ -33,5 +33,4 @@ void main() {
 	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point +
 	                        variance * pow(point.y, 1.3)/GRASS_HEIGHT);
 
-    instanceID = instanceID;
 }

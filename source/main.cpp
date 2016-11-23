@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <cstring>
 
 #include "SOIL.h"
 #include "Utility.h"
@@ -19,8 +20,8 @@ const uint LOD = 10;    //10
 float g = 0.08f; //9.8f
 float k = 5.0f;
 float dt = 1.0f/60;
-const VM::vec4 init_variance(0.11f, 0.0f, 0.11f, 0.0f);
 const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
+const VM::vec4 init_variance = wind/4;
 
 GLuint gr_texture;
 GLuint grass_texture;
@@ -50,33 +51,180 @@ bool captureMouse = true;
 
 bool msaa_flag = true;
 
-// Функция, рисующая замлю
-void DrawGround() {
+
+
+
+
+
+
+
+
+
+
+
+void loadOBJ(const char * path,
+             std::vector < VM::vec4 > & out_vertices,
+             std::vector < VM::vec2 > & out_uvs,
+             std::vector < VM::vec4 > & out_normals) {
+
+
+    std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
+    std::vector<VM::vec4> temp_vertices;
+    std::vector<VM::vec2> temp_uvs;
+    std::vector<VM::vec4> temp_normals;
+
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        printf("Impossible to open the file !\n");
+        exit(-1);
+    }
+
+    while (true) {
+
+        char lineHeader[128] = {0};
+        // read the first word of the line
+        int res = fscanf(file, "%s", lineHeader);
+        if (res == EOF)
+            break; // EOF = End Of File. Quit the loop.
+
+        // else : parse lineHeader
+
+        if (strcmp(lineHeader, "v") == 0) {
+            VM::vec4 vertex;
+            vertex.w = 1.0f;
+            fscanf(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
+            temp_vertices.push_back(vertex);
+        } else if (strcmp(lineHeader, "vt") == 0) {
+            VM::vec2 uv;
+            fscanf(file, " %f %f\n", &uv.x, &uv.y);
+            temp_uvs.push_back(uv);
+        }else if ( strcmp( lineHeader, "f" ) == 0 ){
+            unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
+            int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2] );
+            if (matches != 9){
+                printf("File can't be read by our simple parser : ( Try exporting with other options\n");
+                exit(-1);
+            }
+            vertexIndices.push_back(vertexIndex[0]);
+            vertexIndices.push_back(vertexIndex[1]);
+            vertexIndices.push_back(vertexIndex[2]);
+            uvIndices    .push_back(uvIndex[0]);
+            uvIndices    .push_back(uvIndex[1]);
+            uvIndices    .push_back(uvIndex[2]);
+            normalIndices.push_back(normalIndex[0]);
+            normalIndices.push_back(normalIndex[1]);
+            normalIndices.push_back(normalIndex[2]);
+        }
+    }
+
+    for (unsigned int i = 0; i < vertexIndices.size(); i++) {
+        unsigned int vertexIndex = vertexIndices[i];
+        VM::vec4 vertex = temp_vertices[vertexIndex - 1];
+        out_vertices.push_back(vertex);
+    }
+    for (unsigned int i = 0; i < uvIndices.size(); i++) {
+        unsigned int vertexIndex = uvIndices[i];
+        VM::vec2 uv = temp_uvs[vertexIndex - 1];
+        out_uvs.push_back(uv);
+    }
+}
+
+std::vector< VM::vec4 > vertices;
+std::vector< VM::vec2 > uvs;
+std::vector< VM::vec4 > normals;
+
+GLuint modelShader;
+GLuint modelVAO;
+GLuint model_texture;
+
+void CreateModel() {
+
+    glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
+
+    model_texture = SOIL_load_OGL_texture("../Texture/rock1.jpg",
+                                       SOIL_LOAD_AUTO,
+                                       SOIL_CREATE_NEW_ID,
+                                       SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+    );
+
+    glBindTexture(GL_TEXTURE_2D, model_texture);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
+    // Set texture filtering
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+
+    glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
+
+    loadOBJ("../Texture/Rock2.obj", vertices, uvs, normals);
+
+    modelShader = GL::CompileShaderProgram("model");
+
+    GLuint pointsBuffer;
+    glGenBuffers(1, &pointsBuffer);                                              CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, pointsBuffer);                                 CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * vertices.size(), vertices.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
+
+    glGenVertexArrays(1, &modelVAO);                                            CHECK_GL_ERRORS
+    glBindVertexArray(modelVAO);                                                CHECK_GL_ERRORS
+
+    GLuint index = glGetAttribLocation(modelShader, "point");                   CHECK_GL_ERRORS
+    glEnableVertexAttribArray(index);                                            CHECK_GL_ERRORS
+    glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, 0, 0);                   CHECK_GL_ERRORS
+
+    index = glGetAttribLocation(modelShader, "TexCoord_in");                  CHECK_GL_ERRORS
+    glEnableVertexAttribArray(index);                                            CHECK_GL_ERRORS
+    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, 0, 0);                   CHECK_GL_ERRORS
+
+    glBindVertexArray(0);                                                        CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
+}
+
+void DrawModel(){
     // Используем шейдер для земли
-    glUseProgram(groundShader);                                                  CHECK_GL_ERRORS
+    glUseProgram(modelShader);                                                   CHECK_GL_ERRORS
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gr_texture);
-    GLuint gr_text_loc = glGetUniformLocation(groundShader, "inTexture");
-    glUniform1i(gr_text_loc, 0);
+    glBindTexture(GL_TEXTURE_2D, model_texture);
+    GLuint model_text_loc = glGetUniformLocation(groundShader, "inTexture");
+    glUniform1i(model_text_loc, 0);
 
     // Устанавливаем юниформ для шейдера. В данном случае передадим перспективную матрицу камеры
     // Находим локацию юниформа 'camera' в шейдере
     GLint cameraLocation = glGetUniformLocation(groundShader, "camera");         CHECK_GL_ERRORS
-    // Устанавливаем юниформ (загружаем на GPU матрицу проекции?)                                                     // ###
+    // Устанавливаем юниформ (загружаем на GPU матрицу проекции?)
     glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
 
     // Подключаем VAO, который содержит буферы, необходимые для отрисовки земли
-    glBindVertexArray(groundVAO);                                                CHECK_GL_ERRORS
+    glBindVertexArray(modelVAO);                                                CHECK_GL_ERRORS
 
     // Рисуем землю: 2 треугольника (6 вершин)
-    glDrawArrays(GL_TRIANGLES, 0, 6);                                            CHECK_GL_ERRORS
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());                             CHECK_GL_ERRORS
 
     // Отсоединяем VAO
     glBindVertexArray(0);                                                        CHECK_GL_ERRORS
     // Отключаем шейдер
     glUseProgram(0);                                                             CHECK_GL_ERRORS
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Обновление смещения травинок
 void UpdateGrassVariance() {
@@ -110,6 +258,8 @@ void UpdateGrassVariance() {
     // Отвязываем буфер
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
 }
+
+
 
 // Рисование травы
 void DrawGrass() {
@@ -152,6 +302,35 @@ void DrawGrass() {
     glUseProgram(0);
 }
 
+// Функция, рисующая замлю
+void DrawGround() {
+    // Используем шейдер для земли
+    glUseProgram(groundShader);                                                  CHECK_GL_ERRORS
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gr_texture);
+    GLuint gr_text_loc = glGetUniformLocation(groundShader, "inTexture");
+    glUniform1i(gr_text_loc, 0);
+
+    // Устанавливаем юниформ для шейдера. В данном случае передадим перспективную матрицу камеры
+    // Находим локацию юниформа 'camera' в шейдере
+    GLint cameraLocation = glGetUniformLocation(groundShader, "camera");         CHECK_GL_ERRORS
+    // Устанавливаем юниформ (загружаем на GPU матрицу проекции?)                                                     // ###
+    glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
+
+    // Подключаем VAO, который содержит буферы, необходимые для отрисовки земли
+    glBindVertexArray(groundVAO);                                                CHECK_GL_ERRORS
+
+    // Рисуем землю: 2 треугольника (6 вершин)
+    glDrawArrays(GL_TRIANGLES, 0, 6);                                            CHECK_GL_ERRORS
+
+    // Отсоединяем VAO
+    glBindVertexArray(0);                                                        CHECK_GL_ERRORS
+    // Отключаем шейдер
+    glUseProgram(0);                                                             CHECK_GL_ERRORS
+}
+
+
 // Эта функция вызывается для обновления экрана
 void RenderLayouts() {
     // Включение буфера глубины
@@ -162,6 +341,7 @@ void RenderLayouts() {
     // Рисуем меши
     DrawGround();
     DrawGrass();
+    DrawModel();
     glutSwapBuffers();
 }
 
@@ -386,17 +566,6 @@ void CreateGrass() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
 }
 
-// Создаём камеру (Если шаблонная камера вам не нравится, то можете переделать, но я бы не стал)
-void CreateCamera() {
-    camera.angle = 45.0f / 180.0f * M_PI;
-    camera.direction = VM::vec3(-0.3, 0.3, -0.5);
-    camera.position = VM::vec3(0.5, 2, 0);
-    camera.screenRatio = (float)screenWidth / screenHeight;
-    camera.up = VM::vec3(0, 1, 0);
-    camera.zfar = 50.0f;
-    camera.znear = 0.05f;
-}
-
 // Создаём замлю
 void CreateGround() {
     glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
@@ -446,6 +615,18 @@ void CreateGround() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
 }
 
+// Создаём камеру (Если шаблонная камера вам не нравится, то можете переделать, но я бы не стал)
+void CreateCamera() {
+    camera.angle = 45.0f / 180.0f * M_PI;
+    camera.direction = VM::vec3(-0.3, 0.3, -0.5);
+    camera.position = VM::vec3(0.5, 2, 0);
+    camera.screenRatio = (float)screenWidth / screenHeight;
+    camera.up = VM::vec3(0, 1, 0);
+    camera.zfar = 50.0f;
+    camera.znear = 0.05f;
+}
+
+
 int main(int argc, char **argv)
 {
     putenv((char*) "MESA_GL_VERSION_OVERRIDE=3.3COMPAT");
@@ -454,6 +635,7 @@ int main(int argc, char **argv)
         InitializeGLUT(argc, argv);
         cout << "GLUT inited" << endl;
         glewInit();
+        //glClearColor(0.0, 0.0, 1.0, 1.0);
         cout << "glew inited" << endl;
         CreateCamera();
         cout << "Camera created" << endl;
@@ -461,6 +643,10 @@ int main(int argc, char **argv)
         cout << "Grass created" << endl;
         CreateGround();
         cout << "Ground created" << endl;
+
+        CreateModel();
+        cout << "Model created" << endl;
+
         glutMainLoop();
     } catch (string s) {
         cout << s << endl;
