@@ -1,7 +1,8 @@
 #version 330
 
-in vec4 point;
-in vec2 TexCoord_in;
+layout (location = 0) in vec4 point;
+layout (location = 1) in vec2 TexCoord_in;
+
 out vec2 TexCoord;
 uniform mat4 camera;
 

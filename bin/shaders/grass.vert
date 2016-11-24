@@ -9,7 +9,7 @@ uniform float GRASS_HEIGHT;
 uniform float GRASS_WIDTH;
 
 out vec2 TexCoord;
-varying int instanceID;
+flat out int InstanceID;
 
 void main() {
     mat4 scaleMatrix = mat4(1.0);
@@ -32,5 +32,5 @@ void main() {
 
 	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point +
 	                        variance * pow(point.y, 1.3)/GRASS_HEIGHT);
-
+    InstanceID = gl_InstanceID;
 }

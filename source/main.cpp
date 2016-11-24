@@ -14,7 +14,7 @@ const uint GROUND_Y = 10.0f; //5.0
 const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
 const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
-const float SPEED = 0.04;
+const float SPEED = 0.08;
 
 const uint LOD = 7;    //10
 
@@ -49,14 +49,13 @@ uint screenHeight = 600;
 // Это для захвата мышки. Вам это не потребуется (это не значит, что нужно удалять эту строку)
 bool captureMouse = true;
 
-
 bool msaa_flag = true;
 
 GLuint plantShader;
 
-GLuint grass1_count = 1000;
+GLuint grass1_count = 100;
 float grass1_height = 20;
-float grass1_width = 5;
+float grass1_width = 20;
 GLuint grass1_texture;
 GLuint grass1VAO;
 GLuint grass1_PointCount;
@@ -139,19 +138,22 @@ void loadOBJ(const char * path,
         VM::vec4 vertex = temp_vertices[vertexIndex - 1];
         out_vertices.push_back(vertex);
     }
-    for (unsigned int i = 0; i < uvIndices.size(); i++) {
-        unsigned int vertexIndex = uvIndices[i];
-        VM::vec2 uv = temp_uvs[vertexIndex - 1];
-        out_uvs.push_back(uv);
-    }
+    if (!temp_uvs.empty())
+        for (unsigned int i = 0; i < uvIndices.size(); i++) {
+            unsigned int vertexIndex = uvIndices[i];
+            VM::vec2 uv = temp_uvs[vertexIndex - 1];
+            out_uvs.push_back(uv);
+        }
 }
 
 std::vector< VM::vec4 > vertices;
 std::vector< VM::vec2 > uvs;
 std::vector< VM::vec4 > normals;
+GLfloat* vvv;
 
 GLuint modelShader;
 GLuint modelVAO;
+GLuint modelVBO;
 GLuint model_texture;
 
 void CreateModel() {
@@ -168,33 +170,41 @@ void CreateModel() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
     // Set texture filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);CHECK_GL_ERRORS
 
     glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
 
     loadOBJ("../Texture/Rock2.obj", vertices, uvs, normals);
 
+    vvv = new GLfloat[4*vertices.size() + 2*uvs.size()];
+    for (uint i = 0 ; i < vertices.size(); i+=1){
+        vvv[6*i] = vertices[i].x;
+        vvv[6*i+1] = vertices[i].y;
+        vvv[6*i+2] = vertices[i].z;
+        vvv[6*i+3] = vertices[i].w;
+        vvv[6*i+4] = uvs[i].x;
+        vvv[6*i+5] = uvs[i].y;
+    }
+
     modelShader = GL::CompileShaderProgram("model");
 
-    GLuint pointsBuffer;
-    glGenBuffers(1, &pointsBuffer);                                              CHECK_GL_ERRORS
-    glBindBuffer(GL_ARRAY_BUFFER, pointsBuffer);                                 CHECK_GL_ERRORS
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * vertices.size(), vertices.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
-
     glGenVertexArrays(1, &modelVAO);                                            CHECK_GL_ERRORS
+    glGenBuffers(1, &modelVBO);                                              CHECK_GL_ERRORS
+
+
     glBindVertexArray(modelVAO);                                                CHECK_GL_ERRORS
 
-    GLuint index = glGetAttribLocation(modelShader, "point");                   CHECK_GL_ERRORS
-    glEnableVertexAttribArray(index);                                            CHECK_GL_ERRORS
-    glVertexAttribPointer(index, 4, GL_FLOAT, GL_FALSE, 0, 0);                   CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, modelVBO);                                 CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * vertices.size(), vvv, GL_STATIC_DRAW); CHECK_GL_ERRORS
 
-    index = glGetAttribLocation(modelShader, "TexCoord_in");                  CHECK_GL_ERRORS
-    glEnableVertexAttribArray(index);                                            CHECK_GL_ERRORS
-    glVertexAttribPointer(index, 2, GL_FLOAT, GL_FALSE, 0, 0);                   CHECK_GL_ERRORS
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
+    glEnableVertexAttribArray(0);
+    // Tex attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(4 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1);
 
-    glBindVertexArray(0);                                                        CHECK_GL_ERRORS
-    glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
+    glBindVertexArray(0); // Unbind VAO                                         CHECK_GL_ERRORS
 }
 
 void DrawModel(){
@@ -251,9 +261,9 @@ void UpdateGrassVariance() {
 
     // Генерация случайных смещений
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
-        hooke.x = -(k + float(i%GRASS_INSTANCES)/GRASS_INSTANCES) * grassVarianceData[i].x;
+        hooke.x = -(k + 50*float(i%(GRASS_INSTANCES/50))/GRASS_INSTANCES) * grassVarianceData[i].x;
         hooke.y = k * abs(grassVarianceData[i].y);
-        hooke.z = -(k + float(i%GRASS_INSTANCES)/GRASS_INSTANCES) * grassVarianceData[i].z;
+        hooke.z = -(k + 50*float(i%(GRASS_INSTANCES/50))/GRASS_INSTANCES) * grassVarianceData[i].z;
 
         accelerations[i].x = wind.x + hooke.x;
         accelerations[i].y = hooke.y - g;
@@ -343,12 +353,6 @@ void DrawGround() {
 void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
                GLuint VAO, GLuint var, vector<VM::vec4>& vars){
     glUseProgram(plantShader); CHECK_GL_ERRORS
-
-    if (msaa_flag) {
-        glEnable(GL_MULTISAMPLE);
-    } else {
-        glDisable(GL_MULTISAMPLE);
-    }
 
     GLuint height_loc = glGetUniformLocation(plantShader, "GRASS_HEIGHT");
     glUniform1f(height_loc, h);                     CHECK_GL_ERRORS
@@ -793,8 +797,9 @@ int main(int argc, char **argv)
         cout << "Plant1 created" << endl;
 
         auto gr2_pos = [](const VM::vec2 v){
-            return v.x * v.x + v.y * v.y < GROUND_X * GROUND_X / 4 &&
-                    v.x * v.x + v.y * v.y > GROUND_X * GROUND_X / 8; };
+            return v.x * v.x + v.y * v.y < GROUND_X * GROUND_X / 5 &&
+                    v.x * v.x + v.y * v.y > GROUND_X * GROUND_X / 9 &&
+                    v.x > 0.25 && v.y > 0.25;};
 
         CreatePlant(grass2_count, "../Texture/lop.bmp", grass2_texture,
                     grass2_height, grass2_width, grass2_PointCount,

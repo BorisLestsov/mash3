@@ -14,7 +14,7 @@ varying int instanceID;
 void main() {
     mat4 scaleMatrix = mat4(1.0);
     scaleMatrix[0][0] = 0.02; //+ 0.03*fract(pow(gl_InstanceID, 2.1368464164));
-    scaleMatrix[1][1] = 0.2; //+ 0.05*fract(pow(gl_InstanceID, 2.1368464164));   //0.1;
+    scaleMatrix[1][1] = 0.2 + 0.005*fract(pow(gl_InstanceID, 2.1368464164))*GRASS_WIDTH/GRASS_HEIGHT;   //0.1;
     mat4 positionMatrix = mat4(1.0);
     positionMatrix[3][0] = position.x;
     positionMatrix[3][2] = position.y;
@@ -31,6 +31,6 @@ void main() {
     TexCoord = vec2(point.x/GRASS_WIDTH, point.y/GRASS_HEIGHT);
 
 	gl_Position = camera * (positionMatrix * rotMatrix * scaleMatrix * point +
-	                        variance * pow(point.y, 1.3)/GRASS_HEIGHT);
+	                        variance * pow(point.y, 1.3)/GRASS_WIDTH);
 
 }
