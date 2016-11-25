@@ -9,8 +9,8 @@
 using namespace std;
 
 const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
-const uint GROUND_X = 10.0f; // 5.0
-const uint GROUND_Y = 10.0f; //5.0
+const float GROUND_X = 10.0f; // размеры земли
+const float GROUND_Y = 10.0f;
 const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
 const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
@@ -72,22 +72,14 @@ GLuint grass2_PointCount;
 GLuint grass2_Variance;    // Буфер для смещения координат травинок
 vector<VM::vec4> grass2_VarianceData(grass2_count); // Вектор со смещениями для координат травинок
 
+// функция для загрузки моделей
+void model_load(const char *path,
+                std::vector<VM::vec4> &verts_vec,
+                std::vector<VM::vec2> &tex_coords_vec) {
 
-
-
-
-
-
-void loadOBJ(const char * path,
-             std::vector < VM::vec4 > & out_vertices,
-             std::vector < VM::vec2 > & out_uvs,
-             std::vector < VM::vec4 > & out_normals) {
-
-
-    std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
+    std::vector<unsigned int> vertexIndices, uvIndices;
     std::vector<VM::vec4> temp_vertices;
     std::vector<VM::vec2> temp_uvs;
-    std::vector<VM::vec4> temp_normals;
 
     FILE *file = fopen(path, "r");
     if (file == NULL) {
@@ -96,27 +88,25 @@ void loadOBJ(const char * path,
     }
 
     while (true) {
-
-        char lineHeader[128] = {0};
-        // read the first word of the line
-        int res = fscanf(file, "%s", lineHeader);
+        char line[128] = {0};
+        int res = fscanf(file, "%s", line);
         if (res == EOF)
-            break; // EOF = End Of File. Quit the loop.
-
-        // else : parse lineHeader
-
-        if (strcmp(lineHeader, "v") == 0) {
+            break;
+        if (strcmp(line, "v") == 0) {
             VM::vec4 vertex;
             vertex.w = 1.0f;
             fscanf(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
             temp_vertices.push_back(vertex);
-        } else if (strcmp(lineHeader, "vt") == 0) {
+        } else if (strcmp(line, "vt") == 0) {
             VM::vec2 uv;
             fscanf(file, " %f %f\n", &uv.x, &uv.y);
             temp_uvs.push_back(uv);
-        }else if ( strcmp( lineHeader, "f" ) == 0 ){
-            unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
-            int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2] );
+        } else if ( strcmp( line, "f" ) == 0 ){
+            unsigned int vertexIndex[3], uvIndex[3], empty[3];
+            int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
+                                 &vertexIndex[0], &uvIndex[0], &empty[0],
+                                 &vertexIndex[1], &uvIndex[1], &empty[1],
+                                 &vertexIndex[2], &uvIndex[2], &empty[2] );
             if (matches != 9){
                 printf("File can't be read by our simple parser : ( Try exporting with other options\n");
                 exit(-1);
@@ -127,36 +117,64 @@ void loadOBJ(const char * path,
             uvIndices    .push_back(uvIndex[0]);
             uvIndices    .push_back(uvIndex[1]);
             uvIndices    .push_back(uvIndex[2]);
-            normalIndices.push_back(normalIndex[0]);
-            normalIndices.push_back(normalIndex[1]);
-            normalIndices.push_back(normalIndex[2]);
         }
     }
 
     for (unsigned int i = 0; i < vertexIndices.size(); i++) {
         unsigned int vertexIndex = vertexIndices[i];
         VM::vec4 vertex = temp_vertices[vertexIndex - 1];
-        out_vertices.push_back(vertex);
+        verts_vec.push_back(vertex);
     }
     if (!temp_uvs.empty())
         for (unsigned int i = 0; i < uvIndices.size(); i++) {
             unsigned int vertexIndex = uvIndices[i];
             VM::vec2 uv = temp_uvs[vertexIndex - 1];
-            out_uvs.push_back(uv);
+            tex_coords_vec.push_back(uv);
         }
 }
 
 GLuint modelShader;
 
-uint model1_verts_count, model2_verts_count, model3_verts_count;
+uint model1_verts_count, model2_verts_count, model3_verts_count, model4_verts_count;
 
 GLuint model1_VAO;
-GLuint model2_VAO;
 GLuint model1_texture;
+GLfloat buf1[] = {1.0f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 1.0f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 1.0f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0};
+VM::mat4 model1_scale_matrix(buf1);
+GLfloat angle1 = 1.0f;
+
+GLuint model2_VAO;
 GLuint model2_texture;
+GLfloat buf2[] = {0.7f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 0.7f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 0.7f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0};
+VM::mat4 model2_scale_matrix(buf2);
+
+GLfloat angle2 = 1.0f;
 
 GLuint model3_VAO;
 GLuint model3_texture;
+GLfloat buf3[] = {1.4f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 1.4f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 1.4f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0};
+VM::mat4 model3_scale_matrix(buf3);
+GLfloat angle3 = 3.4f;
+
+
+GLuint model4_VAO;
+GLuint model4_texture;
+GLfloat buf4[] = {2.0f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 2.0f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 2.0f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0f};
+VM::mat4 model4_scale_matrix(buf4);
+GLfloat angle4 = 1.4f;
+
 
 void CreateModel(const char* model, const char* texture_path, GLuint& texture,
                  GLuint& VAO, uint& verts_count) {
@@ -164,25 +182,23 @@ void CreateModel(const char* model, const char* texture_path, GLuint& texture,
     glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
 
     texture = SOIL_load_OGL_texture(texture_path,
-                                       SOIL_LOAD_AUTO,
-                                       SOIL_CREATE_NEW_ID,
-                                       SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
-    );
+                                       SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+                                       SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y |
+                                            SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
 
-    glBindTexture(GL_TEXTURE_2D, texture);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
+    glBindTexture(GL_TEXTURE_2D, texture);                                  CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);           CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);           CHECK_GL_ERRORS
     // Set texture filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);       CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);       CHECK_GL_ERRORS
 
-    glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
+    glGenerateMipmap(GL_TEXTURE_2D);                                        CHECK_GL_ERRORS
 
     std::vector< VM::vec4 > vertices;
     std::vector< VM::vec2 > uvs;
-    std::vector< VM::vec4 > normals;
 
-    loadOBJ(model, vertices, uvs, normals);
+    model_load(model, vertices, uvs);
 
     GLfloat* buff = new GLfloat[4*vertices.size() + 2*uvs.size()];
     for (uint i = 0 ; i < vertices.size(); ++i){
@@ -199,12 +215,12 @@ void CreateModel(const char* model, const char* texture_path, GLuint& texture,
 
     GLuint VBO;
 
-    glGenVertexArrays(1, &VAO);                                            CHECK_GL_ERRORS
-    glGenBuffers(1, &VBO);                                              CHECK_GL_ERRORS
+    glGenVertexArrays(1, &VAO);                                               CHECK_GL_ERRORS
+    glGenBuffers(1, &VBO);                                                    CHECK_GL_ERRORS
 
-    glBindVertexArray(VAO);                                                CHECK_GL_ERRORS
+    glBindVertexArray(VAO);                                                   CHECK_GL_ERRORS
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);                                 CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);                                       CHECK_GL_ERRORS
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * vertices.size(), buff, GL_STATIC_DRAW); CHECK_GL_ERRORS
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
@@ -213,37 +229,45 @@ void CreateModel(const char* model, const char* texture_path, GLuint& texture,
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(4 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
 
-    glBindVertexArray(0); // Unbind VAO                                         CHECK_GL_ERRORS
+    glBindVertexArray(0);                                                    CHECK_GL_ERRORS
     delete buff;
 }
 
-void DrawModel(GLuint texture, GLuint VAO, GLuint verts_count, VM::vec4 pos){
+void DrawModel(GLuint texture, GLuint VAO, GLuint verts_count, VM::vec4 pos, VM::mat4 scale, GLfloat angle){
     // Используем шейдер для земли
-    glUseProgram(modelShader);                                                   CHECK_GL_ERRORS
+    glUseProgram(modelShader);                                                        CHECK_GL_ERRORS
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
+    glActiveTexture(GL_TEXTURE0);                                                     CHECK_GL_ERRORS
+
+    glBindTexture(GL_TEXTURE_2D, texture);                                            CHECK_GL_ERRORS
     GLuint model_text_loc = glGetUniformLocation(modelShader, "inTexture");
-    glUniform1i(model_text_loc, 0);
+    glUniform1i(model_text_loc, 0);                                                   CHECK_GL_ERRORS
 
-    GLint cameraLocation = glGetUniformLocation(modelShader, "camera");         CHECK_GL_ERRORS
+    GLint cameraLocation = glGetUniformLocation(modelShader, "camera");               CHECK_GL_ERRORS
     glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
 
-    GLint posLocation = glGetUniformLocation(modelShader, "pos");         CHECK_GL_ERRORS
+    GLint scaleLocation = glGetUniformLocation(modelShader, "scale");                 CHECK_GL_ERRORS
+    glUniformMatrix4fv(scaleLocation, 1, GL_TRUE, scale.data().data());               CHECK_GL_ERRORS
+
+
+    GLint angleLocation = glGetUniformLocation(modelShader, "angle");                 CHECK_GL_ERRORS
+    glUniform1f(angleLocation, angle);                                                CHECK_GL_ERRORS
+
+    GLint posLocation = glGetUniformLocation(modelShader, "pos");                     CHECK_GL_ERRORS
     GLfloat pos_vec[4] = {pos.x, pos.y, pos.z, pos.w};
-    glUniform4fv(posLocation, 1, pos_vec); CHECK_GL_ERRORS
+    glUniform4fv(posLocation, 1, pos_vec);                                            CHECK_GL_ERRORS
 
 
     // Подключаем VAO, который содержит буферы, необходимые для отрисовки земли
-    glBindVertexArray(VAO);                                                CHECK_GL_ERRORS
+    glBindVertexArray(VAO);                                                           CHECK_GL_ERRORS
 
     // Рисуем землю: 2 треугольника (6 вершин)
-    glDrawArrays(GL_TRIANGLES, 0, verts_count);                             CHECK_GL_ERRORS
+    glDrawArrays(GL_TRIANGLES, 0, verts_count);                                       CHECK_GL_ERRORS
 
     // Отсоединяем VAO
-    glBindVertexArray(0);                                                        CHECK_GL_ERRORS
+    glBindVertexArray(0);                                                             CHECK_GL_ERRORS
     // Отключаем шейдер
-    glUseProgram(0);                                                             CHECK_GL_ERRORS
+    glUseProgram(0);                                                                  CHECK_GL_ERRORS
 
 }
 
@@ -276,7 +300,8 @@ void UpdateGrassVariance() {
     // Привязываем буфер, содержащий смещения
     glBindBuffer(GL_ARRAY_BUFFER, grassVariance);                                CHECK_GL_ERRORS
     // Загружаем данные в видеопамять
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * GRASS_INSTANCES, grassVarianceData.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * GRASS_INSTANCES,
+                 grassVarianceData.data(), GL_STATIC_DRAW);                      CHECK_GL_ERRORS
     // Отвязываем буфер
     glBindBuffer(GL_ARRAY_BUFFER, 0);                                            CHECK_GL_ERRORS
 }
@@ -286,7 +311,7 @@ void UpdateGrassVariance() {
 // Рисование травы
 void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
-    glUseProgram(grassShader); CHECK_GL_ERRORS
+    glUseProgram(grassShader);                                                  CHECK_GL_ERRORS
 
     if (msaa_flag) {
         glEnable(GL_MULTISAMPLE);
@@ -295,12 +320,12 @@ void DrawGrass() {
     }
 
     GLuint height_loc = glGetUniformLocation(grassShader, "GRASS_HEIGHT");
-    glUniform1f(height_loc, GRASS_HEIGHT);CHECK_GL_ERRORS
+    glUniform1f(height_loc, GRASS_HEIGHT);                                      CHECK_GL_ERRORS
 
     GLuint width_loc = glGetUniformLocation(grassShader, "GRASS_WIDTH");
-    glUniform1f(width_loc, GRASS_WIDTH);CHECK_GL_ERRORS
+    glUniform1f(width_loc, GRASS_WIDTH);                                        CHECK_GL_ERRORS
 
-    glActiveTexture(GL_TEXTURE0);CHECK_GL_ERRORS
+    glActiveTexture(GL_TEXTURE0);                                               CHECK_GL_ERRORS
     glBindTexture(GL_TEXTURE_2D, grass_texture);
     GLuint grass_text_loc = glGetUniformLocation(grassShader, "inTexture");
     glUniform1i(grass_text_loc, 0);CHECK_GL_ERRORS
@@ -350,15 +375,15 @@ void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
     glUseProgram(plantShader); CHECK_GL_ERRORS
 
     GLuint height_loc = glGetUniformLocation(plantShader, "GRASS_HEIGHT");
-    glUniform1f(height_loc, h);                     CHECK_GL_ERRORS
+    glUniform1f(height_loc, h);                                                 CHECK_GL_ERRORS
 
     GLuint width_loc = glGetUniformLocation(plantShader, "GRASS_WIDTH");
-    glUniform1f(width_loc, w);                      CHECK_GL_ERRORS
+    glUniform1f(width_loc, w);                                                   CHECK_GL_ERRORS
 
-    glActiveTexture(GL_TEXTURE0);               CHECK_GL_ERRORS
+    glActiveTexture(GL_TEXTURE0);                                                   CHECK_GL_ERRORS
     glBindTexture(GL_TEXTURE_2D, tex);
     GLuint plant_text_loc = glGetUniformLocation(plantShader, "inTexture");
-    glUniform1i(plant_text_loc, 0);             CHECK_GL_ERRORS
+    glUniform1i(plant_text_loc, 0);                                                 CHECK_GL_ERRORS
 
     GLint cameraLocation = glGetUniformLocation(plantShader, "camera");          CHECK_GL_ERRORS
     glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
@@ -368,13 +393,13 @@ void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
     for (uint i = 0; i < vars.size(); ++i)
         vars[i] = grassVarianceData[i];
 
-    glBindBuffer(GL_ARRAY_BUFFER, var);                                CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, var);                                             CHECK_GL_ERRORS
     // Загружаем данные в видеопамять
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * count, grass1_VarianceData.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
     // Отвязываем буфер
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, p_count, count);   CHECK_GL_ERRORS
+    glDrawArraysInstanced(GL_TRIANGLES, 0, p_count, count);                         CHECK_GL_ERRORS
     glBindVertexArray(0);                                                        CHECK_GL_ERRORS
     glUseProgram(0);
 
@@ -400,10 +425,11 @@ void RenderLayouts() {
     DrawPlant(grass2_count, grass2_PointCount, grass2_height, grass2_width, grass2_texture,
               grass2VAO, grass2_Variance, grass2_VarianceData);
 
-    DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,7,0));
-    DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,0,1,0));
-    DrawModel(model3_texture, model3_VAO, model3_verts_count, VM::vec4(1,1.32,7,0));
-
+    angle3 += 0.03;
+    DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,7,0), model1_scale_matrix, angle1);
+    DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,0,1,0), model2_scale_matrix, angle2);
+    DrawModel(model3_texture, model3_VAO, model3_verts_count, VM::vec4(1,1.32,7,0), model3_scale_matrix, angle3);
+    DrawModel(model4_texture, model4_VAO, model4_verts_count, VM::vec4(5,0,5,0), model4_scale_matrix, angle4);
 
     glutSwapBuffers();
 }
@@ -554,11 +580,11 @@ void CreateGrass() {
     );
 
     glBindTexture(GL_TEXTURE_2D, grass_texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);               CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);               CHECK_GL_ERRORS
     // Set texture filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);           CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);           CHECK_GL_ERRORS
 
     glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
 
@@ -571,7 +597,8 @@ void CreateGrass() {
     // Привязываем сгенерированный буфер
     glBindBuffer(GL_ARRAY_BUFFER, pointsBuffer);                                 CHECK_GL_ERRORS
     // Заполняем буфер данными из вектора
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * grassPoints.size(), grassPoints.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * grassPoints.size(),
+                 grassPoints.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
 
     // Создание VAO
     // Генерация VAO
@@ -619,20 +646,20 @@ void CreateGrass() {
 void CreateGround() {
     glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
 
-    gr_texture = SOIL_load_OGL_texture("../Texture/ground.bmp",
+    gr_texture = SOIL_load_OGL_texture("../Texture/dirt.jpg",
                     SOIL_LOAD_AUTO,
                     SOIL_CREATE_NEW_ID,
                     SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
             );
 
     glBindTexture(GL_TEXTURE_2D, gr_texture);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);                   CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);                   CHECK_GL_ERRORS
     // Set texture filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);               CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);               CHECK_GL_ERRORS
 
-    glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
+    glGenerateMipmap(GL_TEXTURE_2D);                                                CHECK_GL_ERRORS
 
     // Земля состоит из двух треугольников
     vector<VM::vec4> meshPoints = {
@@ -701,22 +728,23 @@ void CreatePlant(GLuint count, const char* texpath,
     );
 
     glBindTexture(GL_TEXTURE_2D, tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);               CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);               CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);           CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);           CHECK_GL_ERRORS
 
-    glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
+    glGenerateMipmap(GL_TEXTURE_2D);                                            CHECK_GL_ERRORS
 
     plantShader = GL::CompileShaderProgram("plant");
 
     GLuint pointsBuffer;
     glGenBuffers(1, &pointsBuffer);                                              CHECK_GL_ERRORS
     glBindBuffer(GL_ARRAY_BUFFER, pointsBuffer);                                 CHECK_GL_ERRORS
-    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * plantPoints.size(), plantPoints.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * plantPoints.size(),
+                 plantPoints.data(), GL_STATIC_DRAW);                           CHECK_GL_ERRORS
 
-    glGenVertexArrays(1, &VAO);                                             CHECK_GL_ERRORS
-    glBindVertexArray(VAO);                                                 CHECK_GL_ERRORS
+    glGenVertexArrays(1, &VAO);                                                  CHECK_GL_ERRORS
+    glBindVertexArray(VAO);                                                      CHECK_GL_ERRORS
 
     GLuint pointsLocation = glGetAttribLocation(plantShader, "point");           CHECK_GL_ERRORS
     glEnableVertexAttribArray(pointsLocation);                                   CHECK_GL_ERRORS
@@ -732,8 +760,8 @@ void CreatePlant(GLuint count, const char* texpath,
     glVertexAttribPointer(positionLocation, 2, GL_FLOAT, GL_FALSE, 0, 0);        CHECK_GL_ERRORS
     glVertexAttribDivisor(positionLocation, 1);                                  CHECK_GL_ERRORS
 
-    glGenBuffers(1, &var);                                            CHECK_GL_ERRORS
-    glBindBuffer(GL_ARRAY_BUFFER, var);                               CHECK_GL_ERRORS
+    glGenBuffers(1, &var);                                                      CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, var);                                         CHECK_GL_ERRORS
     glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * count, vars.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
 
     GLuint varianceLocation = glGetAttribLocation(plantShader, "variance");      CHECK_GL_ERRORS
@@ -794,6 +822,7 @@ int main(int argc, char **argv)
                     grass2VAO, grass2_Variance, grass2_VarianceData, gr2_pos);
         cout << "Plant2 created" << endl;
 
+        glClearColor(0.0f, 0.2f, 0.5f, 0.0f);
 
         CreateModel("../Texture/Rock2.obj", "../Texture/rock1.jpg", model1_texture, model1_VAO, model1_verts_count);
         cout << "Model1 created" << endl;
@@ -802,7 +831,10 @@ int main(int argc, char **argv)
         cout << "Model2 created" << endl;
 
         CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.tga", model3_texture, model3_VAO, model3_verts_count);
-        cout << "Model2 created" << endl;
+        cout << "Model3 created" << endl;
+
+        CreateModel("../Texture/cat2.obj", "../Texture/Cat_D.tga", model4_texture, model4_VAO, model4_verts_count);
+        cout << "Model4 created" << endl;
 
         glutMainLoop();
     } catch (string s) {
