@@ -8,7 +8,7 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 8000;  // 10000 Количество травинок
+const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
 const uint GROUND_X = 10.0f; // 5.0
 const uint GROUND_Y = 10.0f; //5.0
 const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
@@ -146,57 +146,63 @@ void loadOBJ(const char * path,
         }
 }
 
-std::vector< VM::vec4 > vertices;
-std::vector< VM::vec2 > uvs;
-std::vector< VM::vec4 > normals;
-GLfloat* vvv;
-
 GLuint modelShader;
-GLuint modelVAO;
-GLuint modelVBO;
-GLuint model_texture;
 
-void CreateModel() {
+uint model1_verts_count, model2_verts_count;
+
+GLuint model1_VAO;
+GLuint model2_VAO;
+GLuint model1_texture;
+GLuint model2_texture;
+
+void CreateModel(const char* model, const char* texture_path, GLuint& texture,
+                 GLuint& VAO, uint& verts_count) {
 
     glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
 
-    model_texture = SOIL_load_OGL_texture("../Texture/rock1.jpg",
+    texture = SOIL_load_OGL_texture(texture_path,
                                        SOIL_LOAD_AUTO,
                                        SOIL_CREATE_NEW_ID,
                                        SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
     );
 
-    glBindTexture(GL_TEXTURE_2D, model_texture);CHECK_GL_ERRORS
+    glBindTexture(GL_TEXTURE_2D, texture);CHECK_GL_ERRORS
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);CHECK_GL_ERRORS
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);CHECK_GL_ERRORS
     // Set texture filtering
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);CHECK_GL_ERRORS
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);CHECK_GL_ERRORS
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);CHECK_GL_ERRORS
 
     glGenerateMipmap(GL_TEXTURE_2D);CHECK_GL_ERRORS
 
-    loadOBJ("../Texture/Rock2.obj", vertices, uvs, normals);
+    std::vector< VM::vec4 > vertices;
+    std::vector< VM::vec2 > uvs;
+    std::vector< VM::vec4 > normals;
 
-    vvv = new GLfloat[4*vertices.size() + 2*uvs.size()];
-    for (uint i = 0 ; i < vertices.size(); i+=1){
-        vvv[6*i] = vertices[i].x;
-        vvv[6*i+1] = vertices[i].y;
-        vvv[6*i+2] = vertices[i].z;
-        vvv[6*i+3] = vertices[i].w;
-        vvv[6*i+4] = uvs[i].x;
-        vvv[6*i+5] = uvs[i].y;
+    loadOBJ(model, vertices, uvs, normals);
+
+    GLfloat* buff = new GLfloat[4*vertices.size() + 2*uvs.size()];
+    for (uint i = 0 ; i < vertices.size(); ++i){
+        buff[6*i] = vertices[i].x;
+        buff[6*i+1] = vertices[i].y;
+        buff[6*i+2] = vertices[i].z;
+        buff[6*i+3] = vertices[i].w;
+        buff[6*i+4] = uvs[i].x;
+        buff[6*i+5] = uvs[i].y;
     }
+    verts_count = vertices.size();
 
     modelShader = GL::CompileShaderProgram("model");
 
-    glGenVertexArrays(1, &modelVAO);                                            CHECK_GL_ERRORS
-    glGenBuffers(1, &modelVBO);                                              CHECK_GL_ERRORS
+    GLuint VBO;
 
+    glGenVertexArrays(1, &VAO);                                            CHECK_GL_ERRORS
+    glGenBuffers(1, &VBO);                                              CHECK_GL_ERRORS
 
-    glBindVertexArray(modelVAO);                                                CHECK_GL_ERRORS
+    glBindVertexArray(VAO);                                                CHECK_GL_ERRORS
 
-    glBindBuffer(GL_ARRAY_BUFFER, modelVBO);                                 CHECK_GL_ERRORS
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * vertices.size(), vvv, GL_STATIC_DRAW); CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);                                 CHECK_GL_ERRORS
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * vertices.size(), buff, GL_STATIC_DRAW); CHECK_GL_ERRORS
 
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
     glEnableVertexAttribArray(0);
@@ -205,28 +211,31 @@ void CreateModel() {
     glEnableVertexAttribArray(1);
 
     glBindVertexArray(0); // Unbind VAO                                         CHECK_GL_ERRORS
+    delete buff;
 }
 
-void DrawModel(){
+void DrawModel(GLuint texture, GLuint VAO, GLuint verts_count, VM::vec4 pos){
     // Используем шейдер для земли
     glUseProgram(modelShader);                                                   CHECK_GL_ERRORS
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, model_texture);
-    GLuint model_text_loc = glGetUniformLocation(groundShader, "inTexture");
+    glBindTexture(GL_TEXTURE_2D, texture);
+    GLuint model_text_loc = glGetUniformLocation(modelShader, "inTexture");
     glUniform1i(model_text_loc, 0);
 
-    // Устанавливаем юниформ для шейдера. В данном случае передадим перспективную матрицу камеры
-    // Находим локацию юниформа 'camera' в шейдере
-    GLint cameraLocation = glGetUniformLocation(groundShader, "camera");         CHECK_GL_ERRORS
-    // Устанавливаем юниформ (загружаем на GPU матрицу проекции?)
+    GLint cameraLocation = glGetUniformLocation(modelShader, "camera");         CHECK_GL_ERRORS
     glUniformMatrix4fv(cameraLocation, 1, GL_TRUE, camera.getMatrix().data().data()); CHECK_GL_ERRORS
 
+    GLint posLocation = glGetUniformLocation(modelShader, "pos");         CHECK_GL_ERRORS
+    GLfloat pos_vec[4] = {pos.x, pos.y, pos.z, pos.w};
+    glUniform4fv(posLocation, 1, pos_vec); CHECK_GL_ERRORS
+
+
     // Подключаем VAO, который содержит буферы, необходимые для отрисовки земли
-    glBindVertexArray(modelVAO);                                                CHECK_GL_ERRORS
+    glBindVertexArray(VAO);                                                CHECK_GL_ERRORS
 
     // Рисуем землю: 2 треугольника (6 вершин)
-    glDrawArrays(GL_TRIANGLES, 0, vertices.size());                             CHECK_GL_ERRORS
+    glDrawArrays(GL_TRIANGLES, 0, verts_count);                             CHECK_GL_ERRORS
 
     // Отсоединяем VAO
     glBindVertexArray(0);                                                        CHECK_GL_ERRORS
@@ -234,23 +243,6 @@ void DrawModel(){
     glUseProgram(0);                                                             CHECK_GL_ERRORS
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 // Обновление смещения травинок
@@ -388,12 +380,6 @@ void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
 
 
 
-
-
-
-
-
-
 // Эта функция вызывается для обновления экрана
 void RenderLayouts() {
     // Включение буфера глубины
@@ -411,7 +397,8 @@ void RenderLayouts() {
     DrawPlant(grass2_count, grass2_PointCount, grass2_height, grass2_width, grass2_texture,
               grass2VAO, grass2_Variance, grass2_VarianceData);
 
-    DrawModel();
+    DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,1,0));
+    DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,1.35,1,0));
 
     glutSwapBuffers();
 }
@@ -447,9 +434,9 @@ void SpecialButtons(int key, int x, int y) {
     if (key == GLUT_KEY_RIGHT) {
         camera.rotateY(0.02);
     } else if (key == GLUT_KEY_LEFT) {
-        camera.rotateY(-0.02);
+        camera.rotateY(-0.02f);
     } else if (key == GLUT_KEY_UP) {
-        camera.rotateTop(-0.02);
+        camera.rotateTop(-0.02f);
     } else if (key == GLUT_KEY_DOWN) {
         camera.rotateTop(0.02);
     }
@@ -503,10 +490,6 @@ void InitializeGLUT(int argc, char **argv) {
     glutPassiveMotionFunc(MouseMove);
     glutMouseFunc(MouseClick);
     glutReshapeFunc(windowReshapeFunc);
-}
-
-bool is_in_area(const VM::vec2& v){
-    return (v.x)*(v.x) + (v.y)*(v.y) > GROUND_X*GROUND_X/4;
 }
 
 // Генерация позиций травинок (эту функцию вам придётся переписать)
@@ -807,8 +790,11 @@ int main(int argc, char **argv)
         cout << "Plant2 created" << endl;
 
 
-        CreateModel();
-        cout << "Model created" << endl;
+        CreateModel("../Texture/Rock2.obj", "../Texture/rock1.jpg", model1_texture, model1_VAO, model1_verts_count);
+        cout << "Model1 created" << endl;
+
+        CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.tga", model2_texture, model2_VAO, model2_verts_count);
+        cout << "Model2 created" << endl;
 
         glutMainLoop();
     } catch (string s) {

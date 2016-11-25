@@ -5,6 +5,7 @@ layout (location = 1) in vec2 TexCoord_in;
 
 out vec2 TexCoord;
 uniform mat4 camera;
+uniform vec4 pos;
 
 void main() {
     mat4 rotMatrix = mat4(0.0);
@@ -17,7 +18,7 @@ void main() {
 
 
 
-	gl_Position = camera * (rotMatrix * point + vec4(1.5, 0, 1.5, 0.3));
+	gl_Position = camera * (rotMatrix * point + pos);
 
 	TexCoord = TexCoord_in;
 }
