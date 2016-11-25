@@ -18,7 +18,7 @@ const float SPEED = 0.08;
 
 const uint LOD = 7;    //10
 
-float g = 0.08f; //9.8f
+float g = 0.05f; //9.8f
 float k = 5.0f;
 float dt = 1.0f/60;
 const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
@@ -148,12 +148,15 @@ void loadOBJ(const char * path,
 
 GLuint modelShader;
 
-uint model1_verts_count, model2_verts_count;
+uint model1_verts_count, model2_verts_count, model3_verts_count;
 
 GLuint model1_VAO;
 GLuint model2_VAO;
 GLuint model1_texture;
 GLuint model2_texture;
+
+GLuint model3_VAO;
+GLuint model3_texture;
 
 void CreateModel(const char* model, const char* texture_path, GLuint& texture,
                  GLuint& VAO, uint& verts_count) {
@@ -397,8 +400,10 @@ void RenderLayouts() {
     DrawPlant(grass2_count, grass2_PointCount, grass2_height, grass2_width, grass2_texture,
               grass2VAO, grass2_Variance, grass2_VarianceData);
 
-    DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,1,0));
-    DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,1.35,1,0));
+    DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,7,0));
+    DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,0,1,0));
+    DrawModel(model3_texture, model3_VAO, model3_verts_count, VM::vec4(1,1.32,7,0));
+
 
     glutSwapBuffers();
 }
@@ -508,7 +513,7 @@ vector<VM::vec2> GenerateGrassPositions(GLuint num = GRASS_INSTANCES,
 vector<VM::vec4> GenMesh(uint n = 1) {
     vector<VM::vec4> mesh;
     uint i;
-    for (i = 0; i < 3.0f*n/4.0f; ++i){
+    for (i = 0; i < 2.5f*n/4.0f; ++i){
         mesh.push_back(VM::vec4(0.0f, i*GRASS_HEIGHT/n, 0, 1));
         mesh.push_back(VM::vec4(GRASS_WIDTH, i*GRASS_HEIGHT/n, 0, 1));
         mesh.push_back(VM::vec4(0.0f, (i+1)*GRASS_HEIGHT/n, 0, 1));
@@ -532,7 +537,7 @@ void CreateGrass() {
     grassPointsCount = grassPoints.size();
     // Создаём позиции для травинок
     auto f = [](const VM::vec2 v){ return v.x * v.x + v.y * v.y > GROUND_X * GROUND_X / 4 &&
-            v.y < 6.0*GROUND_Y/7; };
+            v.y < 6.0*GROUND_Y/7 && v.x > 2.5; };
     vector<VM::vec2> grassPositions = GenerateGrassPositions(GRASS_INSTANCES, f);
     // Инициализация смещений для травинок
     for (uint i = 0; i < GRASS_INSTANCES; ++i) {
@@ -793,7 +798,10 @@ int main(int argc, char **argv)
         CreateModel("../Texture/Rock2.obj", "../Texture/rock1.jpg", model1_texture, model1_VAO, model1_verts_count);
         cout << "Model1 created" << endl;
 
-        CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.tga", model2_texture, model2_VAO, model2_verts_count);
+        CreateModel("../Texture/untitled.obj", "../Texture/dead2.jpg", model2_texture, model2_VAO, model2_verts_count);
+        cout << "Model2 created" << endl;
+
+        CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.tga", model3_texture, model3_VAO, model3_verts_count);
         cout << "Model2 created" << endl;
 
         glutMainLoop();

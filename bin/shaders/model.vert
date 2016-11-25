@@ -16,8 +16,6 @@ void main() {
     rotMatrix[2][2] = cos(0.5);
     rotMatrix[3][3] = 1.0;
 
-
-
 	gl_Position = camera * (rotMatrix * point + pos);
 
 	TexCoord = TexCoord_in;
