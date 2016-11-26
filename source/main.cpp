@@ -247,7 +247,7 @@ void CreateModel(const char* model, const char* texture_path, GLuint& texture,
     glEnableVertexAttribArray(1);
 
     glBindVertexArray(0);                                                            CHECK_GL_ERRORS
-    delete buff;
+    delete []buff;
 }
 
 void DrawModel(GLuint texture, GLuint VAO, GLuint verts_count, VM::vec4 pos, VM::mat4 scale, GLfloat angle){
