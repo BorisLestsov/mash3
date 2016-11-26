@@ -9,20 +9,9 @@
 using namespace std;
 
 const uint GRASS_INSTANCES = 6000;  // Количество травинок
-const float GROUND_X = 10.0f; // размеры земли
-const float GROUND_Y = 10.0f;
-const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
-const GLfloat GRASS_WIDTH = 1.0f;   //0.5
 
-const float SPEED = 0.08;
-
-const uint LOD = 7;    //10
-
-float g = 0.12f; //9.8f
-float k = 5.0f;
-float dt = 1.0f/60;
-const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
-const VM::vec4 init_variance = wind/4;
+const float SPEED = 0.08;   // Camera speed
+const uint LOD = 7;
 
 GLuint gr_texture;
 GLuint grass_texture;
@@ -72,18 +61,29 @@ GLuint grass2_PointCount;
 GLuint grass2_Variance;    // Буфер для смещения координат травинок
 vector<VM::vec4> grass2_VarianceData(grass2_count); // Вектор со смещениями для координат травинок
 
+const float GROUND_X = 10.0f; // размеры земли
+const float GROUND_Y = 10.0f;
+const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
+const GLfloat GRASS_WIDTH = 1.0f;   //0.5
+
+float g = 0.12f; //9.8f
+float k = 5.0f;
+float dt = 1.0f/60;
+const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
+const VM::vec4 init_variance = wind/4;
+
 // функция для загрузки моделей
 void model_load(const char *path,
                 std::vector<VM::vec4> &verts_vec,
                 std::vector<VM::vec2> &tex_coords_vec) {
 
-    std::vector<unsigned int> vertexIndices, uvIndices;
-    std::vector<VM::vec4> temp_vertices;
-    std::vector<VM::vec2> temp_uvs;
+    std::vector<unsigned int> vert_indexes, tex_coords_indeces;
+    std::vector<VM::vec4> verts_tmp;
+    std::vector<VM::vec2> tex_coords_tmp;
 
     FILE *file = fopen(path, "r");
     if (file == NULL) {
-        printf("Impossible to open the file !\n");
+        cout << "Could not open obj file" << endl;
         exit(-1);
     }
 
@@ -96,41 +96,34 @@ void model_load(const char *path,
             VM::vec4 vertex;
             vertex.w = 1.0f;
             fscanf(file, "%f %f %f\n", &vertex.x, &vertex.y, &vertex.z);
-            temp_vertices.push_back(vertex);
+            verts_tmp.push_back(vertex);
         } else if (strcmp(line, "vt") == 0) {
             VM::vec2 uv;
             fscanf(file, " %f %f\n", &uv.x, &uv.y);
-            temp_uvs.push_back(uv);
+            tex_coords_tmp.push_back(uv);
         } else if ( strcmp( line, "f" ) == 0 ){
-            unsigned int vertexIndex[3], uvIndex[3], empty[3];
+            unsigned int vertexIndex[3], uvIndex[3], empty[3];  // We don't need normals
             int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
                                  &vertexIndex[0], &uvIndex[0], &empty[0],
                                  &vertexIndex[1], &uvIndex[1], &empty[1],
                                  &vertexIndex[2], &uvIndex[2], &empty[2] );
             if (matches != 9){
-                printf("File can't be read by our simple parser : ( Try exporting with other options\n");
+                cerr << "File cannot be parsed" << endl;
                 exit(-1);
             }
-            vertexIndices.push_back(vertexIndex[0]);
-            vertexIndices.push_back(vertexIndex[1]);
-            vertexIndices.push_back(vertexIndex[2]);
-            uvIndices    .push_back(uvIndex[0]);
-            uvIndices    .push_back(uvIndex[1]);
-            uvIndices    .push_back(uvIndex[2]);
+            vert_indexes.push_back(vertexIndex[0]);
+            vert_indexes.push_back(vertexIndex[1]);
+            vert_indexes.push_back(vertexIndex[2]);
+            tex_coords_indeces.push_back(uvIndex[0]);
+            tex_coords_indeces.push_back(uvIndex[1]);
+            tex_coords_indeces.push_back(uvIndex[2]);
         }
     }
 
-    for (unsigned int i = 0; i < vertexIndices.size(); i++) {
-        unsigned int vertexIndex = vertexIndices[i];
-        VM::vec4 vertex = temp_vertices[vertexIndex - 1];
-        verts_vec.push_back(vertex);
-    }
-    if (!temp_uvs.empty())
-        for (unsigned int i = 0; i < uvIndices.size(); i++) {
-            unsigned int vertexIndex = uvIndices[i];
-            VM::vec2 uv = temp_uvs[vertexIndex - 1];
-            tex_coords_vec.push_back(uv);
-        }
+    for (unsigned int i = 0; i < vert_indexes.size(); i++)
+        verts_vec.push_back(verts_tmp[vert_indexes[i] - 1]);
+    for (unsigned int i = 0; i < tex_coords_indeces.size(); i++)
+        tex_coords_vec.push_back(tex_coords_tmp[tex_coords_indeces[i] - 1]);
 }
 
 GLuint modelShader;
@@ -253,7 +246,7 @@ void CreateModel(const char* model, const char* texture_path, GLuint& texture,
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(4 * sizeof(GLfloat)));
     glEnableVertexAttribArray(1);
 
-    glBindVertexArray(0);                                                    CHECK_GL_ERRORS
+    glBindVertexArray(0);                                                            CHECK_GL_ERRORS
     delete buff;
 }
 
@@ -331,7 +324,6 @@ void UpdateGrassVariance() {
 }
 
 
-
 // Рисование травы
 void DrawGrass() {
     // Тут то же самое, что и в рисовании земли
@@ -393,7 +385,6 @@ void DrawGround() {
 }
 
 
-
 void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
                GLuint VAO, GLuint var, vector<VM::vec4>& vars){
     glUseProgram(plantShader); CHECK_GL_ERRORS
@@ -417,20 +408,17 @@ void DrawPlant(GLuint count, GLuint p_count, float h, float w, GLuint tex,
     for (uint i = 0; i < vars.size(); ++i)
         vars[i] = grassVarianceData[i];
 
-    glBindBuffer(GL_ARRAY_BUFFER, var);                                             CHECK_GL_ERRORS
+    glBindBuffer(GL_ARRAY_BUFFER, var);                                               CHECK_GL_ERRORS
     // Загружаем данные в видеопамять
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(VM::vec4) * count, grass1_VarianceData.data(), GL_STATIC_DRAW); CHECK_GL_ERRORS
     // Отвязываем буфер
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDrawArraysInstanced(GL_TRIANGLES, 0, p_count, count);                         CHECK_GL_ERRORS
-    glBindVertexArray(0);                                                        CHECK_GL_ERRORS
+    glDrawArraysInstanced(GL_TRIANGLES, 0, p_count, count);                          CHECK_GL_ERRORS
+    glBindVertexArray(0);                                                             CHECK_GL_ERRORS
     glUseProgram(0);
 
 }
-
-
-
 
 // Эта функция вызывается для обновления экрана
 void RenderLayouts() {
@@ -449,7 +437,7 @@ void RenderLayouts() {
     DrawPlant(grass2_count, grass2_PointCount, grass2_height, grass2_width, grass2_texture,
               grass2VAO, grass2_Variance, grass2_VarianceData);
 
-    angle3 += 0.03;
+    angle3 += 0.02;
     DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,7,0), model1_scale_matrix, angle1);
     DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,0,1,0), model2_scale_matrix, angle2);
     DrawModel(model3_texture, model3_VAO, model3_verts_count, VM::vec4(1,1.32,7,0), model3_scale_matrix, angle3);
@@ -853,16 +841,16 @@ int main(int argc, char **argv)
         CreateModel("../Texture/Rock2.obj", "../Texture/rock1.jpg", model1_texture, model1_VAO, model1_verts_count);
         cout << "Model1 created" << endl;
 
-        CreateModel("../Texture/untitled.obj", "../Texture/dead2.jpg", model2_texture, model2_VAO, model2_verts_count);
+        CreateModel("../Texture/tree.obj", "../Texture/dead2.jpg", model2_texture, model2_VAO, model2_verts_count);
         cout << "Model2 created" << endl;
 
-        CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.tga", model3_texture, model3_VAO, model3_verts_count);
+        CreateModel("../Texture/rab.obj", "../Texture/Rabbit_D.png", model3_texture, model3_VAO, model3_verts_count);
         cout << "Model3 created" << endl;
 
-        CreateModel("../Texture/cat2.obj", "../Texture/Cat_D.tga", model4_texture, model4_VAO, model4_verts_count);
+        CreateModel("../Texture/cat2.obj", "../Texture/Cat_D.png", model4_texture, model4_VAO, model4_verts_count);
         cout << "Model4 created" << endl;
 
-        CreateModel("../Texture/ss.obj", "../Texture/skk.png", model5_texture, model5_VAO, model5_verts_count);
+        CreateModel("../Texture/skybox.obj", "../Texture/skk.png", model5_texture, model5_VAO, model5_verts_count);
         cout << "Model5 created" << endl;
 
         CreateModel("../Texture/tr.obj", "../Texture/tractor_d.png", model6_texture, model6_VAO, model6_verts_count);
