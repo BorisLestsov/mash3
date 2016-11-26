@@ -8,7 +8,7 @@
 
 using namespace std;
 
-const uint GRASS_INSTANCES = 10000;  // 10000 Количество травинок
+const uint GRASS_INSTANCES = 6000;  // Количество травинок
 const float GROUND_X = 10.0f; // размеры земли
 const float GROUND_Y = 10.0f;
 const GLfloat GRASS_HEIGHT = 7.0f;  //5.0
@@ -18,7 +18,7 @@ const float SPEED = 0.08;
 
 const uint LOD = 7;    //10
 
-float g = 0.05f; //9.8f
+float g = 0.12f; //9.8f
 float k = 5.0f;
 float dt = 1.0f/60;
 const VM::vec4 wind(1.2f, 0.0f, 1.2f, 0.0f);
@@ -135,7 +135,12 @@ void model_load(const char *path,
 
 GLuint modelShader;
 
-uint model1_verts_count, model2_verts_count, model3_verts_count, model4_verts_count;
+uint model1_verts_count,
+        model2_verts_count,
+        model3_verts_count,
+        model4_verts_count,
+        model5_verts_count,
+        model6_verts_count;
 
 GLuint model1_VAO;
 GLuint model1_texture;
@@ -176,10 +181,29 @@ VM::mat4 model4_scale_matrix(buf4);
 GLfloat angle4 = 1.4f;
 
 
+GLuint model5_VAO;
+GLuint model5_texture;
+GLfloat buf5[] = {20.0f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 20.0f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 20.0f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0f};
+VM::mat4 model5_scale_matrix(buf5);
+GLfloat angle5 = 0.0f;
+
+
+GLuint model6_VAO;
+GLuint model6_texture;
+GLfloat buf6[] = {0.7f, 0.0f, 0.0f, 0.0f,
+                  0.0f, 0.7f, 0.0f, 0.0f,
+                  0.0f, 0.0f, 0.7f, 0.0f,
+                  0.0f, 0.0f, 0.0f, 1.0f};
+VM::mat4 model6_scale_matrix(buf6);
+GLfloat angle6 = 1.57f;
+
 void CreateModel(const char* model, const char* texture_path, GLuint& texture,
                  GLuint& VAO, uint& verts_count) {
 
-    glEnable(GL_TEXTURE_2D);    CHECK_GL_ERRORS
+    glEnable(GL_TEXTURE_2D);                                                 CHECK_GL_ERRORS
 
     texture = SOIL_load_OGL_texture(texture_path,
                                        SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
@@ -429,7 +453,9 @@ void RenderLayouts() {
     DrawModel(model1_texture, model1_VAO, model1_verts_count, VM::vec4(1,0,7,0), model1_scale_matrix, angle1);
     DrawModel(model2_texture, model2_VAO, model2_verts_count, VM::vec4(1,0,1,0), model2_scale_matrix, angle2);
     DrawModel(model3_texture, model3_VAO, model3_verts_count, VM::vec4(1,1.32,7,0), model3_scale_matrix, angle3);
-    DrawModel(model4_texture, model4_VAO, model4_verts_count, VM::vec4(5,0,5,0), model4_scale_matrix, angle4);
+    DrawModel(model4_texture, model4_VAO, model4_verts_count, VM::vec4(5,0,4.3,0), model4_scale_matrix, angle4);
+    DrawModel(model5_texture, model5_VAO, model5_verts_count, VM::vec4(0,0,0,0), model5_scale_matrix, angle5);
+    DrawModel(model6_texture, model6_VAO, model6_verts_count, VM::vec4(7,0,6.5,0), model6_scale_matrix, angle6);
 
     glutSwapBuffers();
 }
@@ -822,7 +848,7 @@ int main(int argc, char **argv)
                     grass2VAO, grass2_Variance, grass2_VarianceData, gr2_pos);
         cout << "Plant2 created" << endl;
 
-        glClearColor(0.0f, 0.2f, 0.5f, 0.0f);
+        glClearColor(0.4f, 0.5f, 0.7f, 0.0);
 
         CreateModel("../Texture/Rock2.obj", "../Texture/rock1.jpg", model1_texture, model1_VAO, model1_verts_count);
         cout << "Model1 created" << endl;
@@ -835,6 +861,12 @@ int main(int argc, char **argv)
 
         CreateModel("../Texture/cat2.obj", "../Texture/Cat_D.tga", model4_texture, model4_VAO, model4_verts_count);
         cout << "Model4 created" << endl;
+
+        CreateModel("../Texture/ss.obj", "../Texture/skk.png", model5_texture, model5_VAO, model5_verts_count);
+        cout << "Model5 created" << endl;
+
+        CreateModel("../Texture/tr.obj", "../Texture/tractor_d.png", model6_texture, model6_VAO, model6_verts_count);
+        cout << "Model6 created" << endl;
 
         glutMainLoop();
     } catch (string s) {
